@@ -616,7 +616,7 @@ public class OFDPA1Pipeline extends AbstractHandlerBehaviour implements Pipeline
     protected void initializePipeline() {
         //processPortTable();
         processL2Group();
-        //processVlanTable();
+        processVlanTable();
         processL3Group();
         processTmacTable();
         //processEcmp();
@@ -761,15 +761,15 @@ public class OFDPA1Pipeline extends AbstractHandlerBehaviour implements Pipeline
     }
 
     private void processVlanTable() {
-        // Table miss entry is not required as ofdpa default is to drop
-        // In OF terms, the absence of a t.m.e. also implies drop
         FlowRuleOperations.Builder ops = FlowRuleOperations.builder();
         TrafficSelector.Builder selector = DefaultTrafficSelector.builder();
         TrafficTreatment.Builder treatment = DefaultTrafficTreatment.builder();
         selector.matchInPort(PortNumber.portNumber(33));
-        //selector.matchVlanId(VlanId.vlanId((short) 100));
-        selector.matchVlanId(VlanId.NONE);
+        selector.matchVlanId(VlanId.vlanId((short) 1));
+        //selector.matchVlanId(VlanId.NONE);
         treatment.transition(TMAC_TABLE);
+        //treatment.pushVlan();
+        //treatment.setVlanId(VlanId.vlanId((short) 0));
         FlowRule rule = DefaultFlowRule.builder()
                 .forDevice(deviceId)
                 .withSelector(selector.build())
@@ -784,15 +784,43 @@ public class OFDPA1Pipeline extends AbstractHandlerBehaviour implements Pipeline
             public void onSuccess(FlowRuleOperations ops) {
                 log.info("Entry added to Vlan table");
             }
-
             @Override
             public void onError(FlowRuleOperations ops) {
                 log.info("Failed to initialize Vlan table");
             }
         }));
 
-    }
+        FlowRuleOperations.Builder ops2 = FlowRuleOperations.builder();
+        TrafficSelector.Builder selector2 = DefaultTrafficSelector.builder();
+        TrafficTreatment.Builder treatment2 = DefaultTrafficTreatment.builder();
+        selector2.matchInPort(PortNumber.portNumber(33));
+        //selector.matchVlanId(VlanId.vlanId((short) 0));
+        selector2.matchVlanId(VlanId.NONE);
+        treatment2.transition(TMAC_TABLE);
+        //treatment.pushVlan();
+        treatment2.setVlanId(VlanId.vlanId((short) 1));
+        FlowRule rule2 = DefaultFlowRule.builder()
+                .forDevice(deviceId)
+                .withSelector(selector2.build())
+                .withTreatment(treatment2.build())
+                .withPriority(DEFAULT_PRIORITY)
+                .fromApp(driverId)
+                .makePermanent()
+                .forTable(VLAN_TABLE).build();
+        ops2 =  ops2.add(rule2);
+        flowRuleService.apply(ops2.build(new FlowRuleOperationsContext() {
+            @Override
+            public void onSuccess(FlowRuleOperations ops2) {
+                log.info("Entry added to Vlan table");
+            }
 
+            @Override
+            public void onError(FlowRuleOperations ops2) {
+                log.info("Failed to initialize Vlan table");
+            }
+        }));
+
+    }
 
     protected void processTmacTable() {
         FlowRuleOperations.Builder ops = FlowRuleOperations.builder();
