@@ -625,15 +625,15 @@ public class OFDPA1Pipeline extends AbstractHandlerBehaviour implements Pipeline
         //processBridgingTable();
         //processAclTable();
         //processGroupTable();
-        //processMplsTable();
+        processMplsTable();
     }
 
     protected void processL2Group() {
         TrafficTreatment.Builder l2itt = DefaultTrafficTreatment.builder();
         l2itt.add(Instructions.createOutput(PortNumber.portNumber(0x22)));
-
-        Integer l2groupId = L2INTERFACEMASK | (((short) 0xc3) << 16) | 0x22;
-        final GroupKey l2groupkey = new DefaultGroupKey(appKryo.serialize(0x00c30022));
+        l2itt.
+        Integer l2groupId = L2INTERFACEMASK | (((short) 0x1) << 16) | 0x22;
+        final GroupKey l2groupkey = new DefaultGroupKey(appKryo.serialize(0x00010022));
 
         GroupBucket bucket =
                 DefaultGroupBucket.createIndirectGroupBucket(l2itt.build());
@@ -649,13 +649,13 @@ public class OFDPA1Pipeline extends AbstractHandlerBehaviour implements Pipeline
 
     protected void processL3Group() {
         TrafficTreatment.Builder l3itt = DefaultTrafficTreatment.builder();
-        l3itt.setEthDst(MacAddress.valueOf("00:00:00:aa:aa:01"));
-        l3itt.setEthSrc(MacAddress.valueOf("00:00:00:aa:aa:02"));
-        l3itt.setVlanId(VlanId.vlanId((short) 0xc3));
+        l3itt.setEthDst(MacAddress.valueOf("00:01:02:03:04:05"));
+        l3itt.setEthSrc(MacAddress.valueOf("00:05:04:03:02:01"));
+        l3itt.setVlanId(VlanId.vlanId((short) 0x1));
 
-        final GroupKey l3groupkey = new DefaultGroupKey(appKryo.serialize(0x20110b22));
-        Integer l3groupId = 0x20110b22;
-        l3itt.group(new DefaultGroupId(0x00c30022));
+        final GroupKey l3groupkey = new DefaultGroupKey(appKryo.serialize(0x20000001));
+        Integer l3groupId = 0x20000001;
+        l3itt.group(new DefaultGroupId(0x00010022));
 
         GroupBucket bucket =
                 DefaultGroupBucket.createIndirectGroupBucket(l3itt.build());
@@ -696,14 +696,14 @@ public class OFDPA1Pipeline extends AbstractHandlerBehaviour implements Pipeline
         FlowRuleOperations.Builder ops = FlowRuleOperations.builder();
         TrafficSelector.Builder selector = DefaultTrafficSelector.builder();
         selector.matchEthType(Ethernet.MPLS_UNICAST);
-        selector.matchMplsLabel(MplsLabel.mplsLabel(0xf4));
+        selector.matchMplsLabel(MplsLabel.mplsLabel(0xbb));
         selector.matchMplsBos(true);
         TrafficTreatment.Builder treatment = DefaultTrafficTreatment.builder();
         treatment.decMplsTtl();
         treatment.copyTtlIn();
         treatment.popMpls(Ethernet.TYPE_IPV4);
         treatment.transition(ACL_TABLE);
-        treatment.deferred().group(new DefaultGroupId(0x70000005));
+        treatment.deferred().group(new DefaultGroupId(0x20110b22));
         FlowRule test = DefaultFlowRule.builder().forDevice(deviceId)
                 .withSelector(selector.build()).withTreatment(treatment.build())
                 .withPriority(LOWEST_PRIORITY).fromApp(driverId).makePermanent()
@@ -715,11 +715,6 @@ public class OFDPA1Pipeline extends AbstractHandlerBehaviour implements Pipeline
             public void onSuccess(FlowRuleOperations ops) {
                 log.info("Initialized mpls table");
             }
-
-
-
-
-
 
             @Override
             public void onError(FlowRuleOperations ops) {
@@ -886,6 +881,38 @@ public class OFDPA1Pipeline extends AbstractHandlerBehaviour implements Pipeline
             }
         }));
     }
+
+    protected void processAclTable() {
+        FlowRuleOperations.Builder ops = FlowRuleOperations.builder();
+        TrafficSelector.Builder selector = DefaultTrafficSelector.builder();
+        TrafficTreatment.Builder treatment = DefaultTrafficTreatment.builder();
+        selector.matchEthType(Ethernet.TYPE_IPV4)
+                .matchIPDst(IpPrefix.valueOf("2.2.0.0/24"));
+        treatment.deferred()
+                .group(new DefaultGroupId(0x20110b22));
+        treatment.transition(ACL_TABLE);
+        FlowRule rule = DefaultFlowRule.builder()
+                .forDevice(deviceId)
+                .withSelector(selector.build())
+                .withTreatment(treatment.build())
+                .withPriority(LOWEST_PRIORITY)
+                .fromApp(driverId)
+                .makePermanent()
+                .forTable(60).build();
+        ops =  ops.add(rule);
+        flowRuleService.apply(ops.build(new FlowRuleOperationsContext() {
+            @Override
+            public void onSuccess(FlowRuleOperations ops) {
+                log.info("Initialized IP table");
+            }
+
+            @Override
+            public void onError(FlowRuleOperations ops) {
+                log.info("Failed to initialize unicast IP table");
+            }
+        }));
+    }
+
 
     private class GroupChecker implements Runnable {
         @Override
