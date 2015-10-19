@@ -615,25 +615,25 @@ public class OFDPA1Pipeline extends AbstractHandlerBehaviour implements Pipeline
 
     protected void initializePipeline() {
         //processPortTable();
-        processL2Group();
+        //processL2Group();
         processVlanTable();
-        processL3Group();
-        processTmacTable();
+        //processL3Group();
+        //processTmacTable();
         //processEcmp();
-        processIpTable();
+        //processIpTable();
         //processMcastTable();
         //processBridgingTable();
-        //processAclTable();
+        //processAcl();
         //processGroupTable();
-        processMplsTable();
+        //processMplsTable();
     }
 
     protected void processL2Group() {
         TrafficTreatment.Builder l2itt = DefaultTrafficTreatment.builder();
         l2itt.add(Instructions.createOutput(PortNumber.portNumber(0x22)));
-        l2itt.
+        l2itt.add(Instructions.popVlan());
         Integer l2groupId = L2INTERFACEMASK | (((short) 0x1) << 16) | 0x22;
-        final GroupKey l2groupkey = new DefaultGroupKey(appKryo.serialize(0x00010022));
+        final GroupKey l2groupkey = new DefaultGroupKey(appKryo.serialize(0x10022));
 
         GroupBucket bucket =
                 DefaultGroupBucket.createIndirectGroupBucket(l2itt.build());
@@ -650,12 +650,12 @@ public class OFDPA1Pipeline extends AbstractHandlerBehaviour implements Pipeline
     protected void processL3Group() {
         TrafficTreatment.Builder l3itt = DefaultTrafficTreatment.builder();
         l3itt.setEthDst(MacAddress.valueOf("00:01:02:03:04:05"));
-        l3itt.setEthSrc(MacAddress.valueOf("00:05:04:03:02:01"));
+        l3itt.setEthSrc(MacAddress.valueOf("00:05:04:03:04:01"));
         l3itt.setVlanId(VlanId.vlanId((short) 0x1));
 
         final GroupKey l3groupkey = new DefaultGroupKey(appKryo.serialize(0x20000001));
         Integer l3groupId = 0x20000001;
-        l3itt.group(new DefaultGroupId(0x00010022));
+        l3itt.group(new DefaultGroupId(0x10022));
 
         GroupBucket bucket =
                 DefaultGroupBucket.createIndirectGroupBucket(l3itt.build());
@@ -703,7 +703,7 @@ public class OFDPA1Pipeline extends AbstractHandlerBehaviour implements Pipeline
         treatment.copyTtlIn();
         treatment.popMpls(Ethernet.TYPE_IPV4);
         treatment.transition(ACL_TABLE);
-        treatment.deferred().group(new DefaultGroupId(0x20110b22));
+        treatment.deferred().group(new DefaultGroupId(0x20000003));
         FlowRule test = DefaultFlowRule.builder().forDevice(deviceId)
                 .withSelector(selector.build()).withTreatment(treatment.build())
                 .withPriority(LOWEST_PRIORITY).fromApp(driverId).makePermanent()
@@ -760,7 +760,7 @@ public class OFDPA1Pipeline extends AbstractHandlerBehaviour implements Pipeline
         TrafficSelector.Builder selector = DefaultTrafficSelector.builder();
         TrafficTreatment.Builder treatment = DefaultTrafficTreatment.builder();
         selector.matchInPort(PortNumber.portNumber(33));
-        selector.matchVlanId(VlanId.vlanId((short) 1));
+        selector.matchVlanId(VlanId.vlanId((short) 10));
         //selector.matchVlanId(VlanId.NONE);
         treatment.transition(TMAC_TABLE);
         //treatment.pushVlan();
@@ -793,12 +793,12 @@ public class OFDPA1Pipeline extends AbstractHandlerBehaviour implements Pipeline
         selector2.matchVlanId(VlanId.NONE);
         treatment2.transition(TMAC_TABLE);
         //treatment.pushVlan();
-        treatment2.setVlanId(VlanId.vlanId((short) 1));
+        treatment2.setVlanId(VlanId.vlanId((short) 10));
         FlowRule rule2 = DefaultFlowRule.builder()
                 .forDevice(deviceId)
                 .withSelector(selector2.build())
                 .withTreatment(treatment2.build())
-                .withPriority(DEFAULT_PRIORITY)
+                .withPriority(LOWEST_PRIORITY)
                 .fromApp(driverId)
                 .makePermanent()
                 .forTable(VLAN_TABLE).build();
@@ -824,11 +824,11 @@ public class OFDPA1Pipeline extends AbstractHandlerBehaviour implements Pipeline
         log.debug("adding tmac entry to Routing table");
         selector.matchInPort(PortNumber.portNumber(33));
         selector.matchVlanId(VlanId.vlanId((short) 1));
-        selector.matchEthType(Ethernet.TYPE_IPV4);
-        //selector.matchEthType(Ethernet.MPLS_UNICAST);
+        //selector.matchEthType(Ethernet.TYPE_IPV4);
+        //treatment.transition(30);
+        selector.matchEthType(Ethernet.MPLS_UNICAST);
+        treatment.transition(23);
         selector.matchEthDst(MacAddress.valueOf("00:00:00:00:00:04"));
-        //treatment.transition(23);
-        treatment.transition(30);
         FlowRule rule = DefaultFlowRule.builder()
                 .forDevice(deviceId)
                 .withSelector(selector.build())
@@ -858,7 +858,7 @@ public class OFDPA1Pipeline extends AbstractHandlerBehaviour implements Pipeline
         selector.matchEthType(Ethernet.TYPE_IPV4)
                 .matchIPDst(IpPrefix.valueOf("2.2.0.0/24"));
         treatment.deferred()
-                .group(new DefaultGroupId(0x20110b22));
+                .group(new DefaultGroupId(0x20000002));
         treatment.transition(ACL_TABLE);
         FlowRule rule = DefaultFlowRule.builder()
                 .forDevice(deviceId)
@@ -882,15 +882,14 @@ public class OFDPA1Pipeline extends AbstractHandlerBehaviour implements Pipeline
         }));
     }
 
-    protected void processAclTable() {
+    protected void processAcl() {
         FlowRuleOperations.Builder ops = FlowRuleOperations.builder();
         TrafficSelector.Builder selector = DefaultTrafficSelector.builder();
         TrafficTreatment.Builder treatment = DefaultTrafficTreatment.builder();
         selector.matchEthType(Ethernet.TYPE_IPV4)
-                .matchIPDst(IpPrefix.valueOf("2.2.0.0/24"));
+                .matchIPDst(IpPrefix.valueOf("2.2.0.5/32"));
         treatment.deferred()
-                .group(new DefaultGroupId(0x20110b22));
-        treatment.transition(ACL_TABLE);
+                .group(new DefaultGroupId(0x20000001));
         FlowRule rule = DefaultFlowRule.builder()
                 .forDevice(deviceId)
                 .withSelector(selector.build())
