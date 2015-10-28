@@ -98,6 +98,20 @@ public final class DefaultGroupBucket implements GroupBucket, StoredGroupBucketE
                                       null);
     }
 
+     /**
+     * Creates all group bucket with weight as 1.
+     *
+     * @param treatment traffic treatment associated with group bucket
+     * @return all group bucket object
+     */
+    public static GroupBucket createAllGroupBucket(TrafficTreatment treatment) {
+        return new DefaultGroupBucket(GroupDescription.Type.ALL,
+                treatment,
+                (short) 1,
+                null,
+                null);
+    }
+
     /**
      * Creates select group bucket with specified weight.
      *

@@ -616,7 +616,8 @@ public class OFDPA1Pipeline extends AbstractHandlerBehaviour implements Pipeline
     protected void initializePipeline() {
         //processPortTable();
         //processL2Group();
-        processVlanTable();
+        processL2Flood();
+        //processVlanTable();
         //processL3Group();
         //processTmacTable();
         //processEcmp();
@@ -626,6 +627,29 @@ public class OFDPA1Pipeline extends AbstractHandlerBehaviour implements Pipeline
         //processAcl();
         //processGroupTable();
         //processMplsTable();
+    }
+
+    protected void processL2Flood() {
+        TrafficTreatment.Builder act5 = DefaultTrafficTreatment.builder();
+        act5.group(new DefaultGroupId(0x00de0022));
+        TrafficTreatment.Builder act6 = DefaultTrafficTreatment.builder();
+        act6.group(new DefaultGroupId(0x00de0021));
+        GroupBucket buckete1 =
+                DefaultGroupBucket.createAllGroupBucket(act5.build());
+        GroupBucket buckete2 =
+                DefaultGroupBucket.createAllGroupBucket(act6.build());
+        List<GroupBucket> bktlist = new ArrayList<GroupBucket>();
+        bktlist.add(buckete1);
+        bktlist.add(buckete2);
+        final GroupKey groupkey5 = new DefaultGroupKey(appKryo.serialize(0x40deffff));
+        Integer groupId5 = 0x40deffff;
+        GroupDescription groupDescription5 = new DefaultGroupDescription(deviceId,
+                GroupDescription.Type.ALL,
+                new GroupBuckets(bktlist),
+                groupkey5,
+                groupId5,
+                driverId);
+        groupService.addGroup(groupDescription5);
     }
 
     protected void processL2Group() {

@@ -98,6 +98,10 @@ public class GroupBucketEntryBuilder {
             // TODO: Use GroupBucketEntry
             GroupBucket groupBucket = null;
             switch (type) {
+		case ALL:
+                    groupBucket =
+                            DefaultGroupBucket.createAllGroupBucket(treatment);
+                    break;
                 case INDIRECT:
                     groupBucket =
                             DefaultGroupBucket.createIndirectGroupBucket(treatment);
